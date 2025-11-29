@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>CheckMake PRO-Ultra</title>
+
+  <!-- GitHub Pages 프로젝트 BASE 경로 -->
+  <script>window.__BASE__ = "/ChackMake-wrapper/";</script>
+
+  <!-- Manifest & Icons -->
+  <link rel="manifest" id="mf">
+  <!-- iOS Safari 홈화면 추가 지원 -->
+  <link rel="apple-touch-icon" id="ico180">
+  <link rel="icon" sizes="192x192" id="ico192">
+  <link rel="icon" sizes="256x256" id="ico256">
+  <link rel="icon" sizes="512x512" id="ico512">
+  <meta name="theme-color" content="#111827">
+
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Malgun Gothic,sans-serif;
+         display:grid;place-items:center;height:100vh;margin:0;background:#fff}
+    .wrap{display:flex;flex-direction:column;gap:16px;align-items:center}
+    .btn{padding:12px 16px;border-radius:10px;border:0;cursor:pointer;font-weight:600}
+    .primary{background:#2563eb;color:#fff}
+    .ghost{background:#f4f4f5}
+    img.logo{width:88px;height:88px;border-radius:22px}
+    .err{color:#b91c1c;font-size:.9rem;text-align:center;display:none;max-width:600px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <img class="logo" id="logo" alt="logo"/>
+    <h1>CheckMake PRO-Ultra</h1>
+    <button id="install" class="btn primary" style="display:none">홈 화면에 추가 / 앱 설치</button>
+    <button id="open" class="btn ghost">앱 열기</button>
+    <div id="err" class="err"></div>
+  </div>
+
+  <script>
+    const BASE = window.__BASE__;
+    const APP_URL = "https://chackmake-query-tool.lovable.app/auth";
+
+    // 경로 주입
+    document.getElementById('mf').href      = `${BASE}manifest.json`;
+    document.getElementById('ico180').href  = `${BASE}icons/icon-192.png`; // iOS용
+    document.getElementById('ico192').href  = `${BASE}icons/icon-192.png`;
+    document.getElementById('ico256').href  = `${BASE}icons/icon-256.png`;
+    document.getElementById('ico512').href  = `${BASE}icons/icon-512.png`;
+    document.getElementById('logo').src     = `${BASE}icons/icon-512.png`;
+
+    // 서비스워커 등록
+    let swReady = Promise.resolve();
+    if ('serviceWorker' in navigator) {
+      swReady = navigator.serviceWorker.register(`${BASE}sw.js`);
+    }
+
+    // beforeinstallprompt 이벤트 핸들링
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install').style.display = 'inline-block';
+      console.log('[PWA] beforeinstallprompt fired');
+    });
+
+    document.getElementById('install').addEventListener('click', async () => {
+      if (!deferredPrompt) { alert("설치가 지원되지 않거나 이미 설치됨."); return; }
+      await deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      console.log('[PWA] userChoice:', choice);
+      deferredPrompt = null;
+    });
+
+    // 앱 열기 버튼 → 원본 URL로 이동
+    document.getElementById('open').addEventListener('click', async () => {
+      await swReady;
+      location.href = APP_URL;
+    });
+
+    // 이미 PWA 모드면 바로 원본 앱으로
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      location.replace(APP_URL);
+    }
+
+    // 리소스 경로 체크
+    async function healthCheck(){
+      const err = document.getElementById('err');
+      const items = [
+        ['manifest', `${BASE}manifest.json`],
+        ['icon192',  `${BASE}icons/icon-192.png`],
+        ['icon256',  `${BASE}icons/icon-256.png`],
+        ['icon512',  `${BASE}icons/icon-512.png`],
+        ['sw',       `${BASE}sw.js`],
+      ];
+      const fails = [];
+      for (const [name, url] of items) {
+        try {
+          const r = await fetch(url, {method:'HEAD', cache:'no-store'});
+          if (!r.ok) fails.push(`${name}: ${r.status}`);
+        } catch(e){ fails.push(`${name}: fetch error`); }
+      }
+      if (fails.length){
+        err.style.display='block';
+        err.textContent = "리소스 경로 오류: " + fails.join(' | ') +
+          `\n(BASE가 '${BASE}'로 설정되어 있습니다. 리포 이름이 다르면 수정하세요.)`;
+      }
+    }
+    healthCheck();
+  </script>
+</body>
+</html>
