@@ -1,6 +1,6 @@
 {
-  "name": "CheckMake PRO-Ultra",
-  "short_name": "CM PRO-Ultra",
+  "name": "CheckMake PRO Ultra v2",
+  "short_name": "CM Ultra v2",
   "start_url": "./?autolaunch=1",
   "scope": "./",
   "display": "standalone",
